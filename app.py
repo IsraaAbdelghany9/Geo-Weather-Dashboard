@@ -19,7 +19,7 @@ from views.region_view import render_region_view
 from views.city_view import render_city_view
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(".env")
 
 progress = {"value": 0}
 result_df = {
