@@ -1,7 +1,9 @@
+## views/city_view.py
 import plotly.graph_objects as go # For gauge chart
 import plotly.express as px
 from dash import dash_table, html, dcc
 import pandas as pd
+import dash_bootstrap_components as dbc # <--- ADD THIS LINE
 
 def render_city_view(df: pd.DataFrame):
     if df is None or df.empty:
@@ -16,7 +18,6 @@ def render_city_view(df: pd.DataFrame):
 
     city_name = df['city'].iloc[0].title() if 'city' in df.columns and not df.empty else "Selected City"
     country_name = df['country'].iloc[0].title() if 'country' in df.columns and not df.empty else ""
-    region_name = df['region'].iloc[0].title() if 'region' in df.columns and not df.empty else ""
 
 
     # --- Current Temperature Gauge (using first forecast hour for current) ---
@@ -84,21 +85,21 @@ def render_city_view(df: pd.DataFrame):
             dbc.Col(dcc.Graph(figure=fig_gauge), width=4), # Current temp gauge
             dbc.Col(dcc.Graph(figure=fig_forecast), width=8) # Hourly forecast
         ], className="mb-4"),
-        html.H5("Raw Forecast Data Table", className="mb-2"),
-        dash_table.DataTable(
-            data=df.to_dict('records'),
-            columns=[{"name": col, "id": col} for col in df.columns],
-            style_table={'overflowX': 'auto', 'maxHeight': '400px', 'overflowY': 'auto'},
-            style_cell={
-                'minWidth': '100px', 'width': '150px', 'maxWidth': '250px',
-                'whiteSpace': 'normal',
-                'textAlign': 'left',
-            },
-            style_header={
-                'backgroundColor': '#f2f2f2',
-                'fontWeight': 'bold'
-            },
-            page_size=8,
-            fixed_rows={'headers': True}
-        )
+        # html.H5("Raw Forecast Data Table", className="mb-2"),
+        # dash_table.DataTable(
+        #     data=df.to_dict('records'),
+        #     columns=[{"name": col, "id": col} for col in df.columns],
+        #     style_table={'overflowX': 'auto', 'maxHeight': '400px', 'overflowY': 'auto'},
+        #     style_cell={
+        #         'minWidth': '100px', 'width': '150px', 'maxWidth': '250px',
+        #         'whiteSpace': 'normal',
+        #         'textAlign': 'left',
+        #     },
+        #     style_header={
+        #         'backgroundColor': '#f2f2f2',
+        #         'fontWeight': 'bold'
+        #     },
+        #     page_size=8,
+        #     fixed_rows={'headers': True}
+        # )
     ])

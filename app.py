@@ -1,9 +1,10 @@
+# app.py
+
 from threading import Thread
 import dash
-from dash import html, Input, Output
-from dash import callback_context as ctx
+from dash import html, Input, Output, State, callback_context as ctx, callback
 import dash_bootstrap_components as dbc
-from dash import callback, State, Output, Input
+# Ensure all your custom modules are accessible in the Python path
 from data import cities_df
 from tabs.world_tab import world_layout
 from tabs.continent_tab import continent_layout
@@ -18,16 +19,17 @@ from views.country_view import render_country_view
 from views.region_view import render_region_view
 from views.city_view import render_city_view
 from dotenv import load_dotenv
+import os
 
 load_dotenv(".env")
 
 progress = {"value": 0}
 result_df = {
-    "world":None,
-    "continent":None,
+    "world": None,
+    "continent": None,
     "country": None,
-    "region":None,
-    "city":None
+    "region": None,
+    "city": None
 }
 
 def update_progress(p):
@@ -40,24 +42,47 @@ def run_weather_fetch(df, fn, key):
     result_df[key] = fn(df, step_callback=update_progress)
 
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True )
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
 
 app.layout = dbc.Container([
+    # This overlay div helps with readability on top of a busy background image
+    html.Div(style={
+        'position': 'absolute', # Positions relative to the parent container
+        'top': 0, 'left': 0,
+        'width': '100%', 'height': '100%',
+        'background-color': 'rgba(255, 255, 255, 0.6)', # White overlay, 60% opaque
+        'z-index': 0 # Rendered below other content
+    }),
     dbc.Tabs([
         dbc.Tab(label="World", tab_id="world"),
         dbc.Tab(label="Continent", tab_id="continent"),
         dbc.Tab(label="Country", tab_id="country"),
         dbc.Tab(label="Region", tab_id="region"),
         dbc.Tab(label="City", tab_id="city"),
-    ], id="tabs", active_tab="world", className="mt-4"),
-    html.Div(id="tab-content", className="p-4")
-], fluid=True)
+    ], id="tabs", active_tab="world", className="mt-4", style={'z-index': 1, 'position': 'relative'}), # Ensure tabs are above overlay
+    html.Div(id="tab-content", className="p-4", style={'z-index': 1, 'position': 'relative'}) # Ensure content is above overlay
+], fluid=True, style={
+    'background-image': 'url("/assets/360_F_211524227_Ett8aboQvVnROAFtqu3S1pW99Y3Th9vm.jpg")', # Path to your image in the assets folder
+    # Or use an online image URL like: 'url("https://images.unsplash.com/photo-1596706857999-edb201a073f1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w1MjcwNzV8MHwxfHNlYXJjaHwxNXx8Y2xvdWRzJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3MTk5MjczODl8MA&ixlib=rb-4.0.3&q=80&w=1080")',
+    'background-size': 'cover',          # Image covers the entire container
+    'background-repeat': 'no-repeat',    # Prevents image repetition
+    'background-position': 'center center', # Centers the image
+    'min-height': '100vh',               # Ensures background covers the full viewport height
+    'background-attachment': 'fixed',    # Background scrolls with the content
+    'position': 'relative',              # Needed for z-index of absolute children (the overlay)
+    'padding-bottom': '50px'             # Add some padding at the bottom if content is long
+})
+
 
 @app.callback(
     Output("tab-content", "children"),
     Input("tabs", "active_tab")
 )
 def render_tab(tab):
+    """Renders the content for the selected tab."""
+    # This callback works by returning the layout defined in each tab's module.
+    # Ensure these world_layout(), continent_layout(), etc., functions
+    # are correctly defined and return valid Dash components.
     return {
         "world": world_layout(),
         "continent": continent_layout(),
@@ -101,7 +126,7 @@ def update_city_options(selected_country, selected_region):
 
 # --------------MAIN CALLBACKS-----------------
 
-#world
+#world tab callback
 @app.callback(
     Output("progress-bar-world", "value"),
     Output("weather-output-world", "children"),
@@ -121,7 +146,7 @@ def handle_world_tab(n_clicks, n_intervals, cap_size):
         df = get_world_df(cities_df, cap_size)
         Thread(target=run_weather_fetch, args=(df,get_data_incremental,'world'), daemon=True).start()
         return 0, dash.no_update, {"display": "block"}, False
-    
+
     value = int(progress["value"])
     if value >= 100 and result_df['world'] is not None:
         return 0, render_world_view(result_df['world']), {"display": "none"}, True
@@ -131,7 +156,7 @@ def handle_world_tab(n_clicks, n_intervals, cap_size):
 
     return 0, dash.no_update, {"display": "none"}, False
 
-#continent
+#continent tab callback
 @app.callback(
     Output("progress-bar-continent", "value"),
     Output("weather-output-continent", "children"),
@@ -152,7 +177,7 @@ def handle_continent_tab(n_clicks, n_intervals, continent, cap_size):
         df = get_continent_df(cities_df, continent, cap_size)
         Thread(target=run_weather_fetch, args=(df,get_data_incremental,'continent'), daemon=True).start()
         return 0, dash.no_update, {"display": "block"}, False
-    
+
     value = int(progress["value"])
     if value >= 100 and result_df['continent'] is not None:
         return 0, render_continent_view(result_df['continent']), {"display": "none"}, True
@@ -162,7 +187,7 @@ def handle_continent_tab(n_clicks, n_intervals, continent, cap_size):
 
     return 0, dash.no_update, {"display": "none"}, False
 
-#country
+#country tab callback
 @app.callback(
     Output("progress-bar-country", "value"),
     Output("weather-output-country", "children"),
@@ -183,7 +208,7 @@ def handle_country_tab(n_clicks, n_intervals, country, cap_size):
         df = get_country_df(cities_df, country, cap_size)
         Thread(target=run_weather_fetch, args=(df,get_data_incremental,'country'), daemon=True).start()
         return 0, dash.no_update, {"display": "block"}, False
-    
+
     value = int(progress["value"])
     if value >= 100 and result_df['country'] is not None:
         return 0, render_country_view(result_df['country']), {"display": "none"}, True
@@ -193,7 +218,7 @@ def handle_country_tab(n_clicks, n_intervals, country, cap_size):
 
     return 0, dash.no_update, {"display": "none"}, False
 
-#region
+#region tab callback
 @app.callback(
     Output("progress-bar-region", "value"),
     Output("weather-output-region", "children"),
@@ -215,7 +240,7 @@ def handle_region_tab(n_clicks, n_intervals, country, region, cap_size):
         df = get_region_df(cities_df, country, region, cap_size)
         Thread(target=run_weather_fetch, args=(df,get_data_incremental,'region'), daemon=True).start()
         return 0, dash.no_update, {"display": "block"}, False
-    
+
     value = int(progress["value"])
     if value >= 100 and result_df['region'] is not None:
         return 0, render_region_view(result_df['region']), {"display": "none"}, True
@@ -225,7 +250,7 @@ def handle_region_tab(n_clicks, n_intervals, country, region, cap_size):
 
     return 0, dash.no_update, {"display": "none"}, False
 
-#city
+#city tab callback
 @app.callback(
     Output("progress-bar-city", "value"),
     Output("weather-output-city", "children"),
@@ -247,7 +272,7 @@ def handle_city_tab(n_clicks, n_intervals, country, region, city):
         df = get_city_row(cities_df, country, region, city)
         Thread(target=run_weather_fetch, args=(df,get_city_forecast,'city'), daemon=True).start()
         return 10, dash.no_update, {"display": "block"}, False
-    
+
     value = int(progress["value"])
     if value >= 100 and result_df['city'] is not None:
         return 10, render_city_view(result_df['city']), {"display": "none"}, True

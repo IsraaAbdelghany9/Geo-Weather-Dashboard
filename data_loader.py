@@ -122,12 +122,14 @@ def extract_hourly_forecast(json_data):
     df = pd.DataFrame(hours_data)
     return df
 
-def get_city_forecast(df, step_callback=None):
-    if df.empty:
+def get_city_forecast(df_city_info, step_callback=None): # Renamed df to df_city_info for clarity
+    if df_city_info.empty:
         return None
 
-    lat = df.iloc[0]['lat']
-    lon = df.iloc[0]['lon']
+    # Get lat/lon from the provided df_city_info (which should be from get_data_incremental or similar)
+    lat = df_city_info.iloc[0]['lat']
+    lon = df_city_info.iloc[0]['lon']
+
     url = f"{BASE_URL_FORECAST}?key={API_KEY}&q={lat},{lon}&days=3"
 
     try:
@@ -135,14 +137,33 @@ def get_city_forecast(df, step_callback=None):
         response.raise_for_status()
         weather_data = response.json()
         weather_df = extract_hourly_forecast(weather_data)
+
+        # --- IMPORTANT ADDITION ---
+        # Extract location details from the forecast API response itself
+        location_data = weather_data.get('location', {})
+        location_lat = location_data.get('lat')
+        location_lon = location_data.get('lon')
+        city_name = location_data.get('name')
+        country_name = location_data.get('country')
+        region_name = location_data.get('region')
+
+        # Add these details as new columns to the hourly forecast DataFrame
+        # This makes them available for render_city_view
+        weather_df['lat'] = location_lat
+        weather_df['lon'] = location_lon
+        weather_df['city'] = city_name
+        weather_df['country'] = country_name
+        weather_df['region'] = region_name
+        # --- END IMPORTANT ADDITION ---
+
     except Exception as e:
-        print(f"Error fetching weather data: {e}")
+        print(f"Error fetching city forecast data: {e}")
         return None
 
     if step_callback:
         step_callback(100)
 
-    return weather_df
+    return weather_df # This DataFrame now includes 'lat', 'lon', 'city', 'country', 'region'
 
 def get_data_incremental(df, step_callback=None):
     data = []
@@ -165,4 +186,3 @@ def get_data_incremental(df, step_callback=None):
             step_callback((i + 1) / total * 100)
 
     return pd.DataFrame(data)
-
